@@ -183,7 +183,6 @@ public sealed class PubKeyCredParam(
     public static readonly PubKeyCredParam PS256 = new(COSE.Algorithm.PS256);
     public static readonly PubKeyCredParam PS384 = new(COSE.Algorithm.PS384);
     public static readonly PubKeyCredParam PS512 = new(COSE.Algorithm.PS512);
-    public static readonly PubKeyCredParam Ed25519 = new(COSE.Algorithm.EdDSA);
     public static readonly PubKeyCredParam RS1 = new(COSE.Algorithm.RS1);
 
     /// <summary>
@@ -192,7 +191,6 @@ public sealed class PubKeyCredParam(
     public static IReadOnlyList<PubKeyCredParam> Defaults =>
     [
         // Add additional as appropriate
-        Ed25519,
         ES256,
         RS256,
         PS256,

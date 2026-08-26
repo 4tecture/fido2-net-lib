@@ -8,6 +8,7 @@
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <IsPackable>true</IsPackable>
+    <PackageId>4tecture.Fido2.Models</PackageId>
   </PropertyGroup>
 
   <ItemGroup>

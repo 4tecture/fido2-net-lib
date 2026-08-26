@@ -3,14 +3,12 @@ using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-
+using fido2_net_lib;
 using Fido2NetLib;
 using Fido2NetLib.Cbor;
 using Fido2NetLib.Exceptions;
 using Fido2NetLib.Objects;
 using Fido2NetLib.Serialization;
-
-using NSec.Cryptography;
 
 namespace Test;
 
@@ -2485,10 +2483,14 @@ public class AuthenticatorResponseTests
             }
         };
 
+        using var invalidSignatureKey = fido2_net_lib.Test.Fido2Tests.MakeECDsa(COSE.Algorithm.ES256, COSE.EllipticCurve.P256);
+        var invalidSignature = SignatureHelper.EcDsaSigFromSig(
+            invalidSignatureKey.SignData(RandomNumberGenerator.GetBytes(32), HashAlgorithmName.SHA256),
+            invalidSignatureKey.KeySize);
         var assertion = new AuthenticatorAssertionRawResponse.AssertionResponse()
         {
             AuthenticatorData = new AuthenticatorData(SHA256.HashData(Encoding.UTF8.GetBytes(rp)), AuthenticatorFlags.UP | AuthenticatorFlags.UV, 0, null, new Extensions(new byte[] { 0x42 })).ToByteArray(),
-            Signature = [0xf1, 0xd0],
+            Signature = invalidSignature,
             ClientDataJson = clientDataJson,
             UserHandle = [0xf1, 0xd0],
         };
@@ -2526,12 +2528,19 @@ public class AuthenticatorResponseTests
             return Task.FromResult(true);
         };
 
-        fido2_net_lib.Test.Fido2Tests.MakeEdDSA(out _, out var publicKey, out var privateKey);
+        using var ecdsa = fido2_net_lib.Test.Fido2Tests.MakeECDsa(COSE.Algorithm.ES256, COSE.EllipticCurve.P256);
+        var ecParameters = ecdsa.ExportParameters(false);
+        var publicKey = fido2_net_lib.Test.Fido2Tests.MakeCredentialPublicKey(
+            COSE.KeyType.EC2,
+            COSE.Algorithm.ES256,
+            COSE.EllipticCurve.P256,
+            ecParameters.Q.X,
+            ecParameters.Q.Y);
         var ex = await Assert.ThrowsAsync<Fido2VerificationException>(() => lib.MakeAssertionAsync(new MakeAssertionParams
         {
             AssertionResponse = assertionResponse,
             OriginalOptions = options,
-            StoredPublicKey = fido2_net_lib.Test.Fido2Tests.MakeCredentialPublicKey(COSE.KeyType.OKP, COSE.Algorithm.EdDSA, COSE.EllipticCurve.Ed25519, publicKey).GetBytes(),
+            StoredPublicKey = publicKey.GetBytes(),
             StoredSignatureCounter = 0,
             IsUserHandleOwnerOfCredentialIdCallback = callback
         }));
@@ -2564,14 +2573,21 @@ public class AuthenticatorResponseTests
 
         var authData = new AuthenticatorData(SHA256.HashData(Encoding.UTF8.GetBytes(rp)), AuthenticatorFlags.UP | AuthenticatorFlags.UV, 1, null, new Extensions(new byte[] { 0x42 })).ToByteArray();
 
-        fido2_net_lib.Test.Fido2Tests.MakeEdDSA(out _, out var publicKey, out var expandedPrivateKey);
-        Key privateKey = Key.Import(SignatureAlgorithm.Ed25519, expandedPrivateKey, KeyBlobFormat.RawPrivateKey);
-        var cpk = fido2_net_lib.Test.Fido2Tests.MakeCredentialPublicKey(COSE.KeyType.OKP, COSE.Algorithm.EdDSA, COSE.EllipticCurve.Ed25519, publicKey);
+        using var ecdsa = fido2_net_lib.Test.Fido2Tests.MakeECDsa(COSE.Algorithm.ES256, COSE.EllipticCurve.P256);
+        var ecParameters = ecdsa.ExportParameters(false);
+        var cpk = fido2_net_lib.Test.Fido2Tests.MakeCredentialPublicKey(
+            COSE.KeyType.EC2,
+            COSE.Algorithm.ES256,
+            COSE.EllipticCurve.P256,
+            ecParameters.Q.X,
+            ecParameters.Q.Y);
 
         var assertion = new AuthenticatorAssertionRawResponse.AssertionResponse
         {
             AuthenticatorData = authData,
-            Signature = SignatureAlgorithm.Ed25519.Sign(privateKey, [.. authData, .. SHA256.HashData(clientDataJson)]),
+            Signature = SignatureHelper.EcDsaSigFromSig(
+                ecdsa.SignData([.. authData, .. SHA256.HashData(clientDataJson)], HashAlgorithmName.SHA256),
+                ecdsa.KeySize),
             ClientDataJson = clientDataJson,
             UserHandle = [0xf1, 0xd0],
         };

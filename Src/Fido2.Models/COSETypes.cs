@@ -47,7 +47,7 @@ public static class COSE
         /// </summary>
         ES384 = -35,
         /// <summary>
-        /// EdDSA
+        /// EdDSA. This identifier is retained for parsing but is not supported by the 4tecture SystemCrypto distribution.
         /// </summary>
         EdDSA = -8,
         /// <summary>
@@ -176,11 +176,11 @@ public static class COSE
         /// </summary>
         X448 = 5,
         /// <summary>
-        /// Ed25519 for use w/ EdDSA only
+        /// Ed25519 for use w/ EdDSA only. This identifier is retained for parsing but is not supported by the 4tecture SystemCrypto distribution.
         /// </summary>
         Ed25519 = 6,
         /// <summary>
-        /// Ed448 for use w/ EdDSA only
+        /// Ed448 for use w/ EdDSA only. This identifier is retained for parsing but is not supported by the 4tecture SystemCrypto distribution.
         /// </summary>
         Ed448 = 7,
         /// <summary>

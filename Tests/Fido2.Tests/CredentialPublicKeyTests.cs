@@ -2,6 +2,7 @@
 using System.Security.Cryptography.X509Certificates;
 
 using Fido2NetLib;
+using Fido2NetLib.Exceptions;
 using Fido2NetLib.Objects;
 
 namespace fido2_net_lib.Test;
@@ -54,9 +55,37 @@ public class CredentialPublicKeyTests
     }
 
     [Fact]
-    public void OkpCertificate()
+    public void OkpCertificateIsRejected()
     {
         X509Certificate2 okpCert = new(X509CertificateHelper.CreateFromBase64String("MIIBhTCCATegAwIBAgIUfKk9eVV+OkGNxxguVYluGHPPI+swBQYDK2VwMDgxCzAJBgNVBAYTAlVTMREwDwYDVQQIDAhGbG9yaWRzYTEWMBQGA1UECgwNRklETzItTkVULUxJQjAeFw0yNDExMDQwMDM3MDNaFw0yNDEyMDQwMDM3MDNaMDgxCzAJBgNVBAYTAlVTMREwDwYDVQQIDAhGbG9yaWRzYTEWMBQGA1UECgwNRklETzItTkVULUxJQjAqMAUGAytlcAMhAJ2oFxsqEgM4DiMSJNskAYoKf55FXZhrde4Ho2UMJoKuo1MwUTAdBgNVHQ4EFgQUyhKwoqOmiB3UeXztoIPueEi7qSgwHwYDVR0jBBgwFoAUyhKwoqOmiB3UeXztoIPueEi7qSgwDwYDVR0TAQH/BAUwAwEB/zAFBgMrZXADQQArZ82PaihKfiOHNDPCmax/vgsuMlJcQsAywcQFZfaRiNyU5Cq7hwOvNlA1wl1j9hZjV/SiPsfNSgY7nwTGf9cE"u8));
-        CredentialPublicKey cpk = new(okpCert, COSE.Algorithm.EdDSA);
+        var ex = Assert.Throws<NotSupportedException>(() => new CredentialPublicKey(okpCert, COSE.Algorithm.EdDSA));
+
+        Assert.Equal(Fido2ErrorMessages.UnsupportedEdDsaAlgorithm, ex.Message);
+    }
+
+    [Fact]
+    public void DefaultAlgorithmsDoNotContainEdDsa()
+    {
+        Assert.DoesNotContain(PubKeyCredParam.Defaults, parameter => parameter.Alg is COSE.Algorithm.EdDSA);
+    }
+
+    [Fact]
+    public void RegistrationOptionsRejectCallerSuppliedEdDsa()
+    {
+        var fido2 = new Fido2(new Fido2Configuration());
+        var parameters = new RequestNewCredentialParams
+        {
+            User = new Fido2User
+            {
+                Id = [1],
+                Name = "test-user",
+                DisplayName = "Test User"
+            },
+            PubKeyCredParams = [new PubKeyCredParam(COSE.Algorithm.EdDSA)]
+        };
+
+        var ex = Assert.Throws<NotSupportedException>(() => fido2.RequestNewCredential(parameters));
+
+        Assert.Equal(Fido2ErrorMessages.UnsupportedEdDsaAlgorithm, ex.Message);
     }
 }

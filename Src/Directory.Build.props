@@ -7,4 +7,10 @@
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
   </PropertyGroup>
 
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)..\LICENSE.txt" Pack="true" PackagePath="" Link="LICENSE.txt" />
+    <None Include="$(MSBuildThisFileDirectory)..\MODIFICATIONS.md" Pack="true" PackagePath="" Link="MODIFICATIONS.md" />
+    <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="" Link="README.md" />
+  </ItemGroup>
+
 </Project>

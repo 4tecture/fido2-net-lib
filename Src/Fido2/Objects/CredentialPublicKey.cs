@@ -3,8 +3,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 using Fido2NetLib.Cbor;
-
-using NSec.Cryptography;
+using Fido2NetLib.Exceptions;
 
 namespace Fido2NetLib.Objects;
 
@@ -15,7 +14,6 @@ public sealed class CredentialPublicKey
     internal readonly CborMap _cpk;
     internal readonly ECDsa? _ecdsa;
     internal readonly RSA? _rsa;
-    internal readonly NSec.Cryptography.PublicKey? _eddsa;
 
     public CredentialPublicKey(byte[] cpk)
         : this((CborMap)CborObject.Decode(cpk)) { }
@@ -38,10 +36,7 @@ public sealed class CredentialPublicKey
                     return;
                 }
             case COSE.KeyType.OKP:
-                {
-                    _eddsa = CreateEdDSA();
-                    return;
-                }
+                throw new NotSupportedException(Fido2ErrorMessages.UnsupportedEdDsaAlgorithm);
         }
         throw new InvalidOperationException($"Missing or unknown kty {_type}");
     }
@@ -96,12 +91,7 @@ public sealed class CredentialPublicKey
                     break;
                 }
             case COSE.KeyType.OKP:
-                {
-                    _cpk.Add(COSE.KeyTypeParameter.Crv, COSE.EllipticCurve.Ed25519);
-                    _cpk.Add(COSE.KeyTypeParameter.X, cert.PublicKey.EncodedKeyValue.RawData);
-                    _eddsa = CreateEdDSA();
-                    break;
-                }
+                throw new NotSupportedException(Fido2ErrorMessages.UnsupportedEdDsaAlgorithm);
             default:
                 throw new InvalidOperationException($"Missing or unknown kty {_type}");
         }
@@ -118,8 +108,6 @@ public sealed class CredentialPublicKey
             case COSE.KeyType.RSA:
                 return _rsa!.VerifyData(data, signature, CryptoUtils.HashAlgFromCOSEAlg(_alg), Padding);
 
-            case COSE.KeyType.OKP:
-                return SignatureAlgorithm.Ed25519.Verify(_eddsa!, data, signature);
         }
         throw new InvalidOperationException($"Missing or unknown kty {_type}");
     }
@@ -211,32 +199,6 @@ public sealed class CredentialPublicKey
                 default:
                     throw new InvalidOperationException($"Missing or unknown alg {_alg}");
             }
-        }
-    }
-
-    internal NSec.Cryptography.PublicKey CreateEdDSA()
-    {
-        if (_type != COSE.KeyType.OKP)
-        {
-            throw new InvalidOperationException($"Must be a OKP key. Was {_type}");
-        }
-
-        switch (_alg) // https://www.iana.org/assignments/cose/cose.xhtml#algorithms
-        {
-            case COSE.Algorithm.EdDSA:
-                var crv = (COSE.EllipticCurve)(int)_cpk[COSE.KeyTypeParameter.Crv];
-
-                // https://www.iana.org/assignments/cose/cose.xhtml#elliptic-curves
-                if (crv is COSE.EllipticCurve.Ed25519)
-                {
-                    return NSec.Cryptography.PublicKey.Import(SignatureAlgorithm.Ed25519, (byte[])_cpk[COSE.KeyTypeParameter.X], KeyBlobFormat.RawPublicKey);
-                }
-                else
-                {
-                    throw new InvalidOperationException($"Missing or unknown crv {crv}");
-                }
-            default:
-                throw new InvalidOperationException($"Missing or unknown alg {_alg}");
         }
     }
 
