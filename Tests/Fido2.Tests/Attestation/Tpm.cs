@@ -5551,22 +5551,6 @@ public class Tpm : Fido2Tests.Attestation
     }
 
     [Fact]
-    public async Task TestTPMOkpCredentialPublicKeyRejected()
-    {
-        // pubArea describes a genuine (but unrelated) P-256 key; the credential public key is an Ed25519 key that
-        // no TPM 2.0 can hold, so the certInfo cannot be certifying it, whatever the AIK signed.
-        Fido2Tests.MakeEdDSA(out _, out var publicKey, out _);
-        _credentialPublicKey = Fido2Tests.MakeCredentialPublicKey(COSE.KeyType.OKP, COSE.Algorithm.EdDSA, COSE.EllipticCurve.Ed25519, publicKey);
-
-        using var tpmKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        AddTpmAttStmt(CreateEccPubArea(tpmKey.ExportParameters(false), TpmEccCurve.TPM_ECC_NIST_P256));
-
-        var ex = await Assert.ThrowsAsync<Fido2VerificationException>(MakeAttestationResponseAsync);
-        Assert.Equal(Fido2ErrorCode.InvalidAttestation, ex.Code);
-        Assert.Equal("TPM attestation requires an RSA or EC2 credential public key, got OKP", ex.Message);
-    }
-
-    [Fact]
     public async Task TestTPMRsaPubAreaExplicitBigEndianExponentAccepted()
     {
         using var rsa = RSA.Create(2048);

@@ -1,8 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Fido2NetLib.Exceptions;
 using Fido2NetLib.Objects;
 
 namespace Fido2NetLib;
@@ -30,6 +33,11 @@ public class Fido2 : IFido2
     /// <returns></returns>
     public CredentialCreateOptions RequestNewCredential(RequestNewCredentialParams requestNewCredentialParams)
     {
+        if (requestNewCredentialParams.PubKeyCredParams.Any(static parameter => parameter.Alg is COSE.Algorithm.EdDSA))
+        {
+            throw new NotSupportedException(Fido2ErrorMessages.UnsupportedEdDsaAlgorithm);
+        }
+
         var challenge = RandomNumberGenerator.GetBytes(_config.ChallengeSize);
         return CredentialCreateOptions.Create(_config, challenge, requestNewCredentialParams.User, requestNewCredentialParams.AuthenticatorSelection, requestNewCredentialParams.AttestationPreference, requestNewCredentialParams.ExcludeCredentials, requestNewCredentialParams.Extensions, requestNewCredentialParams.PubKeyCredParams);
 

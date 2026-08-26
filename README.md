@@ -1,10 +1,18 @@
-# Passkeys - FIDO2 .NET Library (WebAuthn)
+# 4tecture FIDO2 .NET SystemCrypto Fork
 
-A fully working and battle tested library for passkeys ([FIDO2](https://fidoalliance.org/fido2/) and [WebAuthn](https://www.w3.org/TR/webauthn/)) on [.NET](https://dotnet.microsoft.com/)
+> [!IMPORTANT]
+> This is an unofficial 4tecture-maintained fork of
+> [passwordless-lib/fido2-net-lib](https://github.com/passwordless-lib/fido2-net-lib), based on upstream release
+> `4.1.0` (commit `f57d383`). It removes `NSec.Cryptography`, its native `libsodium` dependency, and
+> EdDSA/Ed25519 support. It contains no Bouncy Castle dependency. RSA, RSA-PSS, and ECDSA operations use .NET
+> `System.Security.Cryptography`. See [MODIFICATIONS.md](MODIFICATIONS.md) for the precise compatibility and
+> maintenance policy.
 
-[![codecov](https://codecov.io/gh/passwordless-lib/fido2-net-lib/branch/main/graph/badge.svg)](https://codecov.io/gh/passwordless-lib/fido2-net-lib)
-[![Financial Contributors on Open Collective](https://opencollective.com/passwordless/all/badge.svg?label=financial+contributors)](https://opencollective.com/passwordless)
-[![NuGet Status](http://img.shields.io/nuget/v/Fido2.svg?style=flat-square)](https://www.nuget.org/packages/Fido2/)
+A fully working and battle tested library for passkeys ([FIDO2](https://fidoalliance.org/fido2/) and
+[WebAuthn](https://www.w3.org/TR/webauthn/)) on [.NET](https://dotnet.microsoft.com/).
+
+The original project is part of the [.NET Foundation](https://dotnetfoundation.org). This fork remains under the
+original MIT license and is not endorsed by the upstream maintainers.
 
 [Releases & Change log](https://github.com/passwordless-lib/fido2-net-lib/releases)
 
@@ -22,8 +30,6 @@ A fully working and battle tested library for passkeys ([FIDO2](https://fidoalli
 Our purpose is to enable passwordless sign in for all .NET apps (asp, core, native).
 
 To provide a developer friendly and well tested [.NET](https://dotnet.microsoft.com/) [FIDO2 Server](https://fidoalliance.org/specs/fido-v2.0-rd-20180702/fido-server-v2.0-rd-20180702.html) / [WebAuthn relying party](https://www.w3.org/TR/webauthn/#relying-party) library for the easy validation of [registration](https://www.w3.org/TR/webauthn/#usecase-registration) ([attestation](https://www.w3.org/TR/webauthn/#attestation)) and [authentication](https://www.w3.org/TR/webauthn/#usecase-authentication) ([assertion](https://www.w3.org/TR/webauthn/#authentication-assertion)) of [FIDO2](https://fidoalliance.org/fido2/) / [WebAuthn](https://www.w3.org/TR/webauthn/) credentials, in order to increase the adoption of the technology, ultimately defeating phishing attacks.
-
-This project is part of the [.NET foundation](https://dotnetfoundation.org)
 
 ## .NET 10 Passkeys vs this library?
 
@@ -52,19 +58,13 @@ I'm happy that Microsoft is finally joining the passkey train, but this library 
 **Requirements**: .NET 8.0 or later
 
 ```bash
-dotnet add package Fido2
+dotnet add package 4tecture.Fido2.SystemCrypto
 ```
 
 To use the ASP.NET Core helpers:
 
 ```bash
-dotnet add package Fido2.AspNet
-```
-
-For Blazor WebAssembly support:
-
-```bash
-dotnet add package Fido2.BlazorWebAssembly
+dotnet add package 4tecture.Fido2.AspNet.SystemCrypto
 ```
 
 > **⚠️ Breaking Changes**: If upgrading from v3.x, see the [Upgrade Guide](Documentation/migration-guide-4.0.0.md) for migration instructions.
@@ -99,7 +99,8 @@ Read more:
 - ✅ Backwards compatibility with FIDO U2F authenticators ([spec](https://www.w3.org/TR/#conforming-authenticators-u2f))
 - ✅ [Windows Hello](https://docs.microsoft.com/en-us/microsoft-edge/dev-guide/windows-integration/web-authentication)
 - ✅ [Face ID and Touch ID for the Web](https://webkit.org/blog/11312/meet-face-id-and-touch-id-for-the-web/) (aka "Apple Hello")
-- ✅ All currently referenced cryptographic algorithms for FIDO2 Server ([spec](https://fidoalliance.org/specs/fido-v2.0-rd-20180702/fido-server-v2.0-rd-20180702.html#other))
+- ✅ RSA, RSA-PSS, and ECDSA credential signatures through .NET `System.Security.Cryptography`
+- ❌ EdDSA/Ed25519 and OKP credential public keys are intentionally unsupported
 - ✅ All current attestation formats: "packed", "tpm", "android-key", "android-safetynet", "fido-u2f", "apple", "apple-appattest", and "none" ([spec](https://www.iana.org/assignments/webauthn/webauthn.xhtml))
 - ✅ FIDO2 Server attestation validation via FIDO Metadata Service V3 ([spec](https://fidoalliance.org/specs/mds/fido-metadata-service-v3.0-ps-20210518.html))
 - ✅ WebAuthn extensions ([spec](https://www.w3.org/TR/webauthn/#extensions)) including PRF, Large Blob, Credential Protection

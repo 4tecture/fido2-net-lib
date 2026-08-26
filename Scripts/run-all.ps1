@@ -9,7 +9,7 @@ if($VersionSuffix) {
 }
 
 # Check for confirmation
-Write-Host "This will call setVersion, pack and publish both projects to nuget."
+Write-Host "This will set the version and build the fork packages locally. It will not publish them."
 Write-Host -background yellow -foreground black "Version: $VersionPrefix$VersionSuffixPath"
 $confirmation = Read-Host "Are you Sure You Want To Proceed [y]"
 if ($confirmation -ne 'y') {exit}
@@ -17,16 +17,16 @@ if ($confirmation -ne 'y') {exit}
 # proceed
 & (join-path $scriptDir "setVersion.ps1") -VersionPrefix $VersionPrefix -VersionSuffix $VersionSuffix
 & (join-path $scriptDir "buildRelease.ps1")
-#& (join-path $scriptDir "packRelease.ps1")
+& (join-path $scriptDir "packRelease.ps1")
 
 if ($? -eq $false) {
     write-host -background DarkBlue -foreground Red "<Error Exit>"
     exit 1 
 }
 
-$target1 = Join-Path $root "Src\Fido2\bin\Release\Fido2.$VersionPrefix$VersionSuffixPath.nupkg"
-$target2 = Join-Path $root "Src\Fido2.Models\bin\Release\Fido2.Models.$VersionPrefix$VersionSuffixPath.nupkg"
-$target3 = Join-Path $root "Src\Fido2.AspNet\bin\Release\Fido2.AspNet.$VersionPrefix$VersionSuffixPath.nupkg"
+$target1 = Join-Path $root "Src\Fido2\bin\Release\4tecture.Fido2.SystemCrypto.$VersionPrefix$VersionSuffixPath.nupkg"
+$target2 = Join-Path $root "Src\Fido2.Models\bin\Release\4tecture.Fido2.Models.$VersionPrefix$VersionSuffixPath.nupkg"
+$target3 = Join-Path $root "Src\Fido2.AspNet\bin\Release\4tecture.Fido2.AspNet.SystemCrypto.$VersionPrefix$VersionSuffixPath.nupkg"
 
 if (
     ((Test-Path $target1) -eq $false) -Or ((Test-Path $target2) -eq $false) -Or ((Test-Path $target3) -eq $false)) {
@@ -38,15 +38,8 @@ if (
     exit 1 
 }
 
-Write-Host "Ready to publish $target1"
-Write-Host "Ready to publish $target2"
-Write-Host "Ready to publish $target3"
+Write-Host "Created $target1"
+Write-Host "Created $target2"
+Write-Host "Created $target3"
 Write-Host -background yellow -foreground black "Version: $VersionPrefix$VersionSuffixPath"
-
-$confirmation = Read-Host "Are you Sure You Want To Proceed (y)"
-if ($confirmation -ne 'y') {exit}
-& (join-path $scriptDir "publish.ps1") -path $target2
-& (join-path $scriptDir "publish.ps1") -path $target1
-& (join-path $scriptDir "publish.ps1") -path $target3
-
-Write-Host "Done. Update to $VersionPrefix $VersionSuffix and published to nuget."
+Write-Host "Done. Publishing is intentionally a separate, explicitly configured step."

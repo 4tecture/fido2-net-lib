@@ -125,10 +125,11 @@ public class Fido2MetadataServiceRepositoryTests
 
     private static (X509Certificate2 root, X509Certificate2 leaf, ECDsa leafKey) BuildChain(bool leafHasCrlDistributionPoint = true)
     {
+        var now = DateTimeOffset.UtcNow;
         using var rootKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var rootRequest = new CertificateRequest("CN=Test MDS Root", rootKey, HashAlgorithmName.SHA256);
         rootRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
-        var root = rootRequest.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+        var root = rootRequest.CreateSelfSigned(now.AddDays(-1), now.AddYears(1));
 
         var leafKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var leafRequest = new CertificateRequest("CN=Test MDS Signer", leafKey, HashAlgorithmName.SHA256);
@@ -137,7 +138,7 @@ public class Fido2MetadataServiceRepositoryTests
         {
             leafRequest.CertificateExtensions.Add(CertificateRevocationListBuilder.BuildCrlDistributionPointExtension([LeafCrlUrl]));
         }
-        var leaf = leafRequest.Create(root, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1), RandomNumberGenerator.GetBytes(8));
+        var leaf = leafRequest.Create(root, now.AddDays(-1), now.AddYears(1), RandomNumberGenerator.GetBytes(8));
 
         return (root, leaf, leafKey);
     }

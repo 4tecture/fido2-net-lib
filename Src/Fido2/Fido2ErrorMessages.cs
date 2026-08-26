@@ -44,6 +44,7 @@ internal static class Fido2ErrorMessages
     public static readonly string MissingAuthenticatorData               = "Authenticator data may not be null";
     public static readonly string InvalidAuthenticatorData_TooShort      = $"Authenticator data is less than the minimum structure length of {AuthenticatorData.MinLength}";
     public static readonly string InvalidCoseAlgorithmValue              = "Unrecognized COSE algorithm value";
+    public static readonly string UnsupportedEdDsaAlgorithm              = "EdDSA and OKP credential public keys are not supported by this distribution";
     public static readonly string BackupEligibilityRequirementNotMet     = "Backup eligibility does not match policy requirement";
     public static readonly string BackupStateRequirementNotMet           = "Backup state does not match policy requirement";
     public static readonly string CredentialAlgorithmRequirementNotMet   = "Credential algorithm does not match policy requirement";

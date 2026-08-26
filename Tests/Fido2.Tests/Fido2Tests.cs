@@ -6,6 +6,7 @@ using System.Text.Json;
 
 using Fido2NetLib;
 using Fido2NetLib.Cbor;
+using Fido2NetLib.Exceptions;
 using Fido2NetLib.Objects;
 
 using Microsoft.Extensions.Caching.Distributed;
@@ -15,8 +16,6 @@ using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Logging;
 
 using Moq;
-
-using NSec.Cryptography;
 
 using Test;
 
@@ -74,7 +73,6 @@ public class Fido2Tests
             new(COSE.KeyType.RSA, COSE.Algorithm.PS256, noCurve),
             new(COSE.KeyType.RSA, COSE.Algorithm.PS384, noCurve),
             new(COSE.KeyType.RSA, COSE.Algorithm.PS512, noCurve),
-            new(COSE.KeyType.OKP, COSE.Algorithm.EdDSA, COSE.EllipticCurve.Ed25519),
             new(COSE.KeyType.EC2, COSE.Algorithm.ES256K, COSE.EllipticCurve.P256K)
         ];
     }
@@ -231,7 +229,6 @@ public class Fido2Tests
                     new(COSE.Algorithm.PS256),
                     new(COSE.Algorithm.PS384),
                     new(COSE.Algorithm.PS512),
-                    new(COSE.Algorithm.EdDSA),
                     new(COSE.Algorithm.ES256K),
                 },
                 Rp = new PublicKeyCredentialRpEntity(rp, rp, ""),
@@ -272,8 +269,6 @@ public class Fido2Tests
         {
             ECDsa ecdsa = null;
             RSA rsa = null;
-            Key privateKey = null;
-            byte[] publicKey = null;
 
             switch (kty)
             {
@@ -287,20 +282,14 @@ public class Fido2Tests
                         rsa = RSA.Create();
                         break;
                     }
-                case COSE.KeyType.OKP:
-                    {
-                        MakeEdDSA(out var privateKeySeed, out publicKey, out byte[] expandedPrivateKey);
-                        privateKey = Key.Import(SignatureAlgorithm.Ed25519, expandedPrivateKey, KeyBlobFormat.RawPrivateKey);
-                        break;
-                    }
                 default:
                     throw new ArgumentOutOfRangeException(nameof(kty), $"Missing or unknown kty {kty}");
             }
 
-            return SignData(kty, alg, crv, ecdsa, rsa, privateKey, publicKey);
+            return SignData(kty, alg, crv, ecdsa, rsa);
         }
 
-        internal byte[] SignData(COSE.KeyType kty, COSE.Algorithm alg, COSE.EllipticCurve curve, ECDsa ecdsa = null, RSA rsa = null, Key expandedPrivateKey = null, byte[] publicKey = null)
+        internal byte[] SignData(COSE.KeyType kty, COSE.Algorithm alg, COSE.EllipticCurve curve, ECDsa ecdsa = null, RSA rsa = null)
         {
             switch (kty)
             {
@@ -336,19 +325,13 @@ public class Fido2Tests
                         _credentialPublicKey = MakeCredentialPublicKey(kty, alg, rsaParams.Modulus, rsaParams.Exponent);
                         return rsa.SignData(_attToBeSigned, CryptoUtils.HashAlgFromCOSEAlg(alg), padding);
                     }
-                case COSE.KeyType.OKP:
-                    {
-                        _credentialPublicKey = MakeCredentialPublicKey(kty, alg, COSE.EllipticCurve.Ed25519, publicKey);
-                        return SignatureAlgorithm.Ed25519.Sign(expandedPrivateKey, _attToBeSigned);
-                    }
-
                 default:
                     throw new ArgumentOutOfRangeException(nameof(kty), $"Missing or unknown kty {kty}");
             }
         }
     }
 
-    internal static byte[] SignData(COSE.KeyType kty, COSE.Algorithm alg, byte[] data, ECDsa ecdsa = null, RSA rsa = null, byte[] expandedPrivateKey = null)
+    internal static byte[] SignData(COSE.KeyType kty, COSE.Algorithm alg, byte[] data, ECDsa ecdsa = null, RSA rsa = null, byte[] unused = null)
     {
         switch (kty)
         {
@@ -379,12 +362,6 @@ public class Fido2Tests
                     }
                     return rsa.SignData(data, CryptoUtils.HashAlgFromCOSEAlg(alg), padding);
                 }
-            case COSE.KeyType.OKP:
-                {
-                    Key privateKey = Key.Import(SignatureAlgorithm.Ed25519, expandedPrivateKey, KeyBlobFormat.RawPrivateKey);
-                    return SignatureAlgorithm.Ed25519.Sign(privateKey, data);
-                }
-
             default:
                 throw new ArgumentOutOfRangeException(nameof(kty), $"Missing or unknown kty {kty}");
         }
@@ -941,7 +918,7 @@ public class Fido2Tests
         var acdFromBytes = AttestedCredentialData.Parse(acdBytes);
         Assert.Equal(acdFromBytes.ToByteArray(), acdFromConst.ToByteArray());
 
-        var sig = SignData(COSE.KeyType.RSA, COSE.Algorithm.RS256, acdBytes, null, rsa, null);
+        var sig = SignData(COSE.KeyType.RSA, COSE.Algorithm.RS256, acdBytes, null, rsa);
 
         Assert.True(cpk.Verify(acdBytes, sig));
         sig[^1] ^= 0xff;
@@ -949,23 +926,18 @@ public class Fido2Tests
     }
 
     [Fact]
-    public void TestAttestedCredentialDataOKP()
+    public void TestAttestedCredentialDataOKPIsRejected()
     {
-        var aaGuid = new Guid("F1D0F1D0-F1D0-F1D0-F1D0-F1D0F1D0F1D0");
-        var credentialID = new byte[] { 0xf1, 0xd0, 0xf1, 0xd0, 0xf1, 0xd0, 0xf1, 0xd0, 0xf1, 0xd0, 0xf1, 0xd0, 0xf1, 0xd0, 0xf1, 0xd0, };
-        MakeEdDSA(out _, out var publicKey, out var privateKey);
-        var cpk = MakeCredentialPublicKey(COSE.KeyType.OKP, COSE.Algorithm.EdDSA, COSE.EllipticCurve.Ed25519, publicKey);
+        var okpKey = new CborMap
+        {
+            { COSE.KeyCommonParameter.KeyType, COSE.KeyType.OKP },
+            { COSE.KeyCommonParameter.Alg, COSE.Algorithm.EdDSA },
+            { COSE.KeyTypeParameter.X, new byte[32] },
+            { (int)COSE.KeyTypeParameter.Crv, (int)COSE.EllipticCurve.Ed25519 }
+        };
 
-        var acdFromConst = new AttestedCredentialData(aaGuid, credentialID, cpk);
-        var acdBytes = acdFromConst.ToByteArray();
-        var acdFromBytes = AttestedCredentialData.Parse(acdBytes);
-        Assert.Equal(acdFromBytes.ToByteArray(), acdFromConst.ToByteArray());
-
-        var sig = SignData(COSE.KeyType.OKP, COSE.Algorithm.EdDSA, acdBytes, null, null, privateKey);
-
-        Assert.True(cpk.Verify(acdBytes, sig));
-        sig[^1] ^= 0xff;
-        Assert.False(cpk.Verify(acdBytes, sig));
+        var ex = Assert.Throws<NotSupportedException>(() => new CredentialPublicKey(okpKey));
+        Assert.Equal(Fido2ErrorMessages.UnsupportedEdDsaAlgorithm, ex.Message);
     }
 
     [Fact]
@@ -1024,8 +996,7 @@ public class Fido2Tests
         CredentialPublicKey cpk = null,
         ushort signCount = 0,
         ECDsa ecdsa = null,
-        RSA rsa = null,
-        byte[] expandedPrivateKey = null)
+        RSA rsa = null)
     {
         const string rp = "https://www.passwordless.dev";
         byte[] rpId = Encoding.UTF8.GetBytes(rp);
@@ -1053,17 +1024,6 @@ public class Fido2Tests
                         cpk = MakeCredentialPublicKey(kty, alg, rsaParams.Modulus, rsaParams.Exponent);
                         break;
                     }
-                case COSE.KeyType.OKP:
-                    {
-                        byte[] publicKey = null;
-                        if (expandedPrivateKey == null)
-                        {
-                            MakeEdDSA(out var privateKeySeed, out publicKey, out expandedPrivateKey);
-                        }
-
-                        cpk = MakeCredentialPublicKey(kty, alg, COSE.EllipticCurve.Ed25519, publicKey);
-                        break;
-                    }
                 default:
                     throw new ArgumentOutOfRangeException(nameof(kty), $"Missing or unknown kty {kty}");
             }
@@ -1089,7 +1049,7 @@ public class Fido2Tests
 
         var hashedClientDataJson = SHA256.HashData(clientDataJson);
         byte[] data = [.. authData, .. hashedClientDataJson];
-        byte[] signature = SignData(kty, alg, data, ecdsa, rsa, expandedPrivateKey);
+        byte[] signature = SignData(kty, alg, data, ecdsa, rsa);
 
         var userHandle = new byte[16];
         RandomNumberGenerator.Fill(userHandle);
@@ -1133,15 +1093,6 @@ public class Fido2Tests
             IsUserHandleOwnerOfCredentialIdCallback = callback,
             StoredSignatureCounter = signCount
         });
-    }
-
-    internal static void MakeEdDSA(out byte[] privateKeySeed, out byte[] publicKey, out byte[] expandedPrivateKey)
-    {
-        privateKeySeed = new byte[32];
-        RandomNumberGenerator.Fill(privateKeySeed);
-        var key = Key.Create(SignatureAlgorithm.Ed25519, new KeyCreationParameters() { ExportPolicy = KeyExportPolicies.AllowPlaintextExport });
-        expandedPrivateKey = key.Export(KeyBlobFormat.RawPrivateKey);
-        publicKey = key.Export(KeyBlobFormat.RawPublicKey);
     }
 
     internal static ECDsa MakeECDsa(COSE.Algorithm alg, COSE.EllipticCurve crv)
@@ -1254,12 +1205,6 @@ public class Fido2Tests
                     var rsa = RSA.Create();
                     var rsaParams = rsa.ExportParameters(true);
                     cpk = MakeCredentialPublicKey(kty, alg, rsaParams.Modulus, rsaParams.Exponent);
-                    break;
-                }
-            case COSE.KeyType.OKP:
-                {
-                    MakeEdDSA(out var privateKeySeed, out byte[] publicKey, out _);
-                    cpk = MakeCredentialPublicKey(kty, alg, COSE.EllipticCurve.Ed25519, publicKey);
                     break;
                 }
             default:

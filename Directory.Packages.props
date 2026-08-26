@@ -10,9 +10,6 @@
     <PackageVersion Include="System.Formats.Cbor" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Bcl.Memory" Version="9.0.14" />
     
-    <!-- Cryptography -->
-    <PackageVersion Include="NSec.Cryptography" Version="25.4.0" />
-    
     <!-- JWT and Identity -->
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.2.0" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.2.0" />
