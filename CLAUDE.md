@@ -100,7 +100,7 @@ dotnet run --project BlazorWasmDemo/Server/BlazorWasmDemo.Server.csproj
 
 ## Key Dependencies
 
-- **NSec.Cryptography** - Cryptographic operations
+- **System.Security.Cryptography** - Cryptographic operations supported by the 4tecture SystemCrypto distribution
 - **System.Formats.Cbor** - CBOR encoding/decoding
 - **Microsoft.IdentityModel.JsonWebTokens** - JWT token handling
 - **Microsoft.Extensions.Http** - HTTP client factory

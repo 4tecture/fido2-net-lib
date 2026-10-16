@@ -60,21 +60,49 @@ public class CredentialPublicKeyTests
     }
 
     [Fact]
-    public void OkpCertificate()
+    public void OkpCertificateIsRejected()
     {
         X509Certificate2 okpCert = new(X509CertificateHelper.CreateFromBase64String("MIIBhTCCATegAwIBAgIUfKk9eVV+OkGNxxguVYluGHPPI+swBQYDK2VwMDgxCzAJBgNVBAYTAlVTMREwDwYDVQQIDAhGbG9yaWRzYTEWMBQGA1UECgwNRklETzItTkVULUxJQjAeFw0yNDExMDQwMDM3MDNaFw0yNDEyMDQwMDM3MDNaMDgxCzAJBgNVBAYTAlVTMREwDwYDVQQIDAhGbG9yaWRzYTEWMBQGA1UECgwNRklETzItTkVULUxJQjAqMAUGAytlcAMhAJ2oFxsqEgM4DiMSJNskAYoKf55FXZhrde4Ho2UMJoKuo1MwUTAdBgNVHQ4EFgQUyhKwoqOmiB3UeXztoIPueEi7qSgwHwYDVR0jBBgwFoAUyhKwoqOmiB3UeXztoIPueEi7qSgwDwYDVR0TAQH/BAUwAwEB/zAFBgMrZXADQQArZ82PaihKfiOHNDPCmax/vgsuMlJcQsAywcQFZfaRiNyU5Cq7hwOvNlA1wl1j9hZjV/SiPsfNSgY7nwTGf9cE"u8));
-        CredentialPublicKey cpk = new(okpCert, COSE.Algorithm.EdDSA);
+        var ex = Assert.Throws<NotSupportedException>(() => new CredentialPublicKey(okpCert, COSE.Algorithm.EdDSA));
+
+        Assert.Equal(Fido2ErrorMessages.UnsupportedEdDsaAlgorithm, ex.Message);
     }
 
     [Fact]
-    public void Ed448IsRefusedAsUnimplementedRatherThanCrashing()
+    public void OkpCredentialPublicKeyIsRejected()
     {
-        byte[] x = RandomNumberGenerator.GetBytes(57); // Ed448 public keys are 57 bytes
+        byte[] x = RandomNumberGenerator.GetBytes(32);
 
-        var ex = Assert.Throws<Fido2VerificationException>(() =>
-            Fido2Tests.MakeCredentialPublicKey(COSE.KeyType.OKP, COSE.Algorithm.EdDSA, COSE.EllipticCurve.Ed448, x));
+        var ex = Assert.Throws<NotSupportedException>(() =>
+            Fido2Tests.MakeCredentialPublicKey(COSE.KeyType.OKP, COSE.Algorithm.EdDSA, COSE.EllipticCurve.Ed25519, x));
 
-        Assert.Equal(Fido2ErrorCode.UnimplementedAlgorithm, ex.Code);
+        Assert.Equal(Fido2ErrorMessages.UnsupportedEdDsaAlgorithm, ex.Message);
+    }
+
+    [Fact]
+    public void DefaultAlgorithmsDoNotContainEdDsa()
+    {
+        Assert.DoesNotContain(PubKeyCredParam.Defaults, parameter => parameter.Alg is COSE.Algorithm.EdDSA);
+    }
+
+    [Fact]
+    public void RegistrationOptionsRejectCallerSuppliedEdDsa()
+    {
+        var fido2 = new Fido2(new Fido2Configuration());
+        var parameters = new RequestNewCredentialParams
+        {
+            User = new Fido2User
+            {
+                Id = [1],
+                Name = "test-user",
+                DisplayName = "Test User"
+            },
+            PubKeyCredParams = [new PubKeyCredParam(COSE.Algorithm.EdDSA)]
+        };
+
+        var ex = Assert.Throws<NotSupportedException>(() => fido2.RequestNewCredential(parameters));
+
+        Assert.Equal(Fido2ErrorMessages.UnsupportedEdDsaAlgorithm, ex.Message);
     }
 
     // Each of these is reachable with attacker-chosen values (a credential public key in authenticator data, or an
@@ -123,15 +151,14 @@ public class CredentialPublicKeyTests
     }
 
     [Fact]
-    public void OkpKeyWithNonEdDsaAlgorithmIsAVerificationFailure()
+    public void OkpKeyWithNonEdDsaAlgorithmIsRejected()
     {
-        Fido2Tests.MakeEdDSA(out _, out var publicKey, out _);
+        byte[] publicKey = RandomNumberGenerator.GetBytes(32);
 
-        var ex = Assert.Throws<Fido2VerificationException>(() =>
+        var ex = Assert.Throws<NotSupportedException>(() =>
             Fido2Tests.MakeCredentialPublicKey(COSE.KeyType.OKP, COSE.Algorithm.ES256, COSE.EllipticCurve.Ed25519, publicKey));
 
-        Assert.Equal(Fido2ErrorCode.InvalidCredentialPublicKey, ex.Code);
-        Assert.Equal("Algorithm ES256 cannot be used with an OKP key", ex.Message);
+        Assert.Equal(Fido2ErrorMessages.UnsupportedEdDsaAlgorithm, ex.Message);
     }
 
     [Fact]

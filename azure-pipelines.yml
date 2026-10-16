@@ -1,0 +1,173 @@
+name: $(Date:yyyyMMdd).$(Rev:r)
+
+trigger:
+  batch: true
+  branches:
+    include:
+      - release/*
+
+pr: none
+
+variables:
+  BuildConfiguration: Release
+  StableNuGetFeed: Products
+  PrereleaseNuGetFeed: Work/Products-PreRelease
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+
+stages:
+  - stage: Build
+    displayName: Build, test, and pack
+    jobs:
+      - job: BuildPackages
+        displayName: Build SystemCrypto packages
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: UseDotNet@2
+            displayName: Use .NET 8 SDK
+            inputs:
+              packageType: sdk
+              version: 8.0.x
+
+          - task: UseDotNet@2
+            displayName: Use .NET 10 SDK
+            inputs:
+              packageType: sdk
+              version: 10.0.x
+
+          - task: Bash@3
+            name: ResolvePackageVersion
+            displayName: Resolve package version
+            inputs:
+              targetType: inline
+              script: |
+                set -euo pipefail
+                IFS= read -r base_version < <(dotnet msbuild Src/Fido2/Fido2.csproj -getProperty:Version -nologo)
+                if ! [[ "$base_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                  echo "Directory.Build.props must contain a stable three-part version. Found: $base_version"
+                  exit 1
+                fi
+
+                if [[ "$BUILD_SOURCEBRANCH" == refs/heads/release/* ]]; then
+                  package_version="$base_version"
+                  package_kind="stable"
+                else
+                  if [[ "$BUILD_REASON" != "Manual" ]]; then
+                    echo "Non-release package builds must be queued manually."
+                    exit 1
+                  fi
+
+                  package_version="$base_version-$BUILD_BUILDNUMBER"
+                  package_kind="prerelease"
+                fi
+
+                echo "Package version: $package_version ($package_kind)"
+                echo "##vso[task.setvariable variable=PackageVersion]$package_version"
+
+          - script: dotnet restore fido2-net-lib.sln
+            displayName: Restore
+
+          - task: Bash@3
+            displayName: Verify excluded cryptography is absent after restore
+            inputs:
+              targetType: filePath
+              filePath: Scripts/verify-no-excluded-crypto.sh
+
+          - script: >
+              dotnet build fido2-net-lib.sln
+              --configuration $(BuildConfiguration)
+              --no-restore
+              -p:ContinuousIntegrationBuild=true
+              -p:Version=$(PackageVersion)
+            displayName: Build
+
+          - script: >
+              dotnet test fido2-net-lib.sln
+              --configuration $(BuildConfiguration)
+              --no-restore
+              --no-build
+              --logger "trx;LogFileName=fido2-test-results.trx"
+            displayName: Test
+
+          - task: PublishTestResults@2
+            displayName: Publish test results
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: VSTest
+              testResultsFiles: '**/fido2-test-results.trx'
+              searchFolder: '$(System.DefaultWorkingDirectory)'
+              failTaskOnFailedTests: true
+
+          - script: |
+              set -euo pipefail
+              dotnet pack Src/Fido2.Models/Fido2.Models.csproj --configuration $(BuildConfiguration) --no-restore --no-build --output "$(Build.ArtifactStagingDirectory)/packages" -p:ContinuousIntegrationBuild=true -p:Version=$(PackageVersion)
+              dotnet pack Src/Fido2/Fido2.csproj --configuration $(BuildConfiguration) --no-restore --no-build --output "$(Build.ArtifactStagingDirectory)/packages" -p:ContinuousIntegrationBuild=true -p:Version=$(PackageVersion)
+              dotnet pack Src/Fido2.AspNet/Fido2.AspNet.csproj --configuration $(BuildConfiguration) --no-restore --no-build --output "$(Build.ArtifactStagingDirectory)/packages" -p:ContinuousIntegrationBuild=true -p:Version=$(PackageVersion)
+            displayName: Pack $(PackageVersion) packages
+
+          - task: Bash@3
+            displayName: Verify package dependency graphs and assets
+            inputs:
+              targetType: filePath
+              filePath: Scripts/verify-no-excluded-crypto.sh
+              arguments: '$(Build.ArtifactStagingDirectory)/packages'
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish package artifacts
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/packages'
+              artifact: packages
+
+  - stage: Publish
+    displayName: Publish to internal NuGet feed
+    dependsOn: Build
+    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), eq(variables['Build.Reason'], 'Manual')))
+    jobs:
+      - job: PublishPackages
+        displayName: Publish packages to Products
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: none
+
+          - task: UseDotNet@2
+            displayName: Use .NET 8 SDK
+            inputs:
+              packageType: sdk
+              version: 8.0.x
+
+          - task: DownloadPipelineArtifact@2
+            displayName: Download package artifacts
+            inputs:
+              source: current
+              artifact: packages
+              path: '$(Pipeline.Workspace)/packages'
+
+          - task: Bash@3
+            displayName: Select internal NuGet feed
+            inputs:
+              targetType: inline
+              script: |
+                set -euo pipefail
+                if [[ "$BUILD_SOURCEBRANCH" == refs/heads/release/* ]]; then
+                  target_feed="$(StableNuGetFeed)"
+                else
+                  target_feed="$(PrereleaseNuGetFeed)"
+                fi
+
+                echo "Target feed: $target_feed"
+                echo "##vso[task.setvariable variable=InternalNuGetFeed]$target_feed"
+
+          - task: DotNetCoreCLI@2
+            displayName: Publish packages to selected internal feed
+            inputs:
+              command: push
+              packagesToPush: '$(Pipeline.Workspace)/packages/*.nupkg'
+              nuGetFeedType: internal
+              publishVstsFeed: '$(InternalNuGetFeed)'
+              publishPackageMetadata: true

@@ -44,7 +44,7 @@ public class FidoU2f : Fido2Tests.Attestation
             .. publicKeyU2F
         ];
 
-        byte[] signature = Fido2Tests.SignData(COSE.KeyType.EC2, COSE.Algorithm.ES256, verificationData, ecdsaAtt, null, null);
+        byte[] signature = Fido2Tests.SignData(COSE.KeyType.EC2, COSE.Algorithm.ES256, verificationData, ecdsaAtt, null);
 
         _attestationObject.Add("attStmt", new CborMap {
             { "x5c", x5c },

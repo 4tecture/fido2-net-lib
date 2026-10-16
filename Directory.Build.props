@@ -2,16 +2,19 @@
 <Project>
   <!-- Package Metadata -->
   <PropertyGroup>
-    <VersionPrefix>4.0.0-beta3</VersionPrefix>
+    <VersionPrefix>4.3.1</VersionPrefix>
     <VersionSuffix></VersionSuffix>
-    <Description>FIDO2 .NET library (WebAuthn)</Description>
-    <RepositoryUrl>https://github.com/passwordless-lib/fido2-net-lib</RepositoryUrl>
+    <Authors>4tecture; .NET Foundation and Contributors</Authors>
+    <Copyright>Copyright (c) .NET Foundation and Contributors; modifications Copyright (c) 4tecture</Copyright>
+    <Description>4tecture-maintained FIDO2 .NET library without NSec, libsodium, Bouncy Castle, or EdDSA support</Description>
+    <RepositoryUrl>https://github.com/4tecture/fido2-net-lib</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <PackageTags>fido2 webauthn</PackageTags>
-    <PackageReleaseNotes>Initial release</PackageReleaseNotes>
-    <PackageProjectUrl>https://github.com/passwordless-lib/fido2-net-lib</PackageProjectUrl>
+    <PackageTags>fido2 webauthn passkeys system-cryptography</PackageTags>
+    <PackageReleaseNotes>Based on upstream Fido2 4.3.1. Removes NSec.Cryptography and libsodium, contains no Bouncy Castle dependency, and disables EdDSA/Ed25519 support.</PackageReleaseNotes>
+    <PackageProjectUrl>https://github.com/4tecture/fido2-net-lib</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   
   <!-- Global Variables -->

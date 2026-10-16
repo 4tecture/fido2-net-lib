@@ -4,6 +4,7 @@
     <TargetFrameworks>$(SupportedTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Fido2NetLib</RootNamespace>
     <IsPackable>true</IsPackable>
+    <PackageId>4tecture.Fido2.AspNet.SystemCrypto</PackageId>
   </PropertyGroup>
 
   <ItemGroup>

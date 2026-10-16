@@ -1,7 +1,11 @@
 param(
     [Parameter(Mandatory=$true)]
     [System.IO.FileInfo]
-    [String] $path) #Must be the first statement in your script
+    [String] $path,
+    [Parameter(Mandatory=$true)]
+    [String] $source,
+    [Parameter(Mandatory=$true)]
+    [String] $apiKey) #Must be the first statement in your script
 
 # if ($nupkgPath -eq "") {
 #     $scriptDir = Split-Path $myinvocation.mycommand.path -Parent
@@ -22,7 +26,6 @@ if($path2 -ne $path) {
 Write-Host "Resolved $path2 -> $path"
 }
 Write-Host "Publishing $path..."
-Start-Sleep 2
-dotnet nuget push $path --source https://api.nuget.org/v3/index.json
+dotnet nuget push $path --source $source --api-key $apiKey
 
 Write-Host "Done $path..."

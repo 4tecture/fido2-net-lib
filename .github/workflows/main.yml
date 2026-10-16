@@ -1,4 +1,4 @@
-name: main
+name: system-crypto-ci
 
 on:
   workflow_dispatch:
@@ -8,19 +8,14 @@ on:
         required: true
         default: "0.0.0-test"
         type: string
-      force_release:
-        description: "Force release to nuget.org"
-        required: false
-        default: false
-        type: boolean
   push:
     branches:
       - main
-      - maintenance-4.x
+      - "release/**"
   pull_request:
     branches:
       - main
-      - maintenance-4.x
+      - "release/**"
   release:
     types:
       - published
@@ -112,6 +107,9 @@ jobs:
       - name: Run restore
         run: dotnet restore
 
+      - name: Verify excluded cryptography is absent
+        run: bash Scripts/verify-no-excluded-crypto.sh
+
       - name: Run build
         run: >
           dotnet build
@@ -186,104 +184,11 @@ jobs:
           pkg=$(ls Src/Fido2.BlazorWebAssembly/bin/Release/Fido2.BlazorWebAssembly.*.nupkg)
           unzip -l "$pkg" | grep -q 'staticwebassets/js/WebAuthn.js$' || { echo "::error::$pkg is missing staticwebassets/js/WebAuthn.js"; unzip -l "$pkg"; exit 1; }
 
+      - name: Verify package dependency graphs and assets
+        run: bash Scripts/verify-no-excluded-crypto.sh
+
       - name: Upload artifacts
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: packages
           path: "**/*.nupkg"
-
-  # Publish to the GitHub package registry every time, whether it's a prerelease
-  # version or a stable release version.
-  deploy:
-    needs:
-      # Technically, it's not required for the format job to succeed for us to push the package,
-      # so we may consider removing it as a prerequisite here.
-      #   - format
-      - test
-      - pack
-
-    if: github.event_name != 'pull_request'
-
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      packages: write
-
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: packages
-
-      - name: Install .NET
-        uses: actions/setup-dotnet@3951f0dfe7a07e2313ec93c75700083e2005cbab # v4.3.0
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Publish packages (GitHub Registry)
-        continue-on-error: true
-        run: >
-          dotnet nuget push **/*.nupkg
-          --source https://nuget.pkg.github.com/passwordless-lib/index.json
-          --api-key ${{ secrets.GITHUB_TOKEN }}
-
-  # Publish to nuget.org on stable releases only, via Trusted Publishing.
-  #
-  # This job is deliberately separate from the one above and kept to two steps:
-  # it is the only job in this workflow that may mint a nuget.org credential, so
-  # `id-token: write` stays scoped to it rather than sitting at workflow level
-  # where the test matrix and any third-party action could reach it.
-  #
-  # The `environment` is load-bearing, not decorative. nuget.org's Trusted
-  # Publishing policy matches on repository owner, repository and workflow
-  # filename -- it has no branch or tag field -- and a `workflow_dispatch` or
-  # `pull_request` run uses the workflow file from *that* ref. Without an
-  # environment whose deployment rules are restricted to main and release tags,
-  # any branch carrying a file named main.yml could mint a real publishing key.
-  # Configure the `nuget-release` environment to allow only `main` and the
-  # release tag pattern, and set the same environment name on the nuget.org
-  # policy so a token without that claim is rejected. Do not add
-  # `refs/pull/*/merge` to those rules.
-  deploy-nuget:
-    needs:
-      - test
-      - pack
-
-    # github.event.inputs.* comes from the raw event payload, where dispatch
-    # inputs are strings -- and every non-empty string is truthy in a GitHub
-    # expression, so a bare `github.event.inputs.force_release` was true even
-    # with the box unchecked. Compare against the string explicitly.
-    if: ${{ github.event_name == 'release' || github.event.inputs.force_release == 'true' }}
-
-    runs-on: ubuntu-latest
-    environment: nuget-release
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: packages
-
-      - name: Install .NET
-        uses: actions/setup-dotnet@3951f0dfe7a07e2313ec93c75700083e2005cbab # v4.3.0
-        with:
-          dotnet-version: "8.0.x"
-
-      # Temporary keys are valid for one hour, so request one immediately
-      # before the push rather than earlier in the job.
-      - name: NuGet login (OIDC)
-        id: login
-        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
-        with:
-          user: ${{ secrets.NUGET_USER }}
-
-      - name: Publish packages (NuGet Registry)
-        run: >
-          dotnet nuget push **/*.nupkg
-          --source https://api.nuget.org/v3/index.json
-          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
