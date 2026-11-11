@@ -3,7 +3,7 @@
 > [!IMPORTANT]
 > This is an unofficial 4tecture-maintained fork of
 > [passwordless-lib/fido2-net-lib](https://github.com/passwordless-lib/fido2-net-lib), based on upstream release
-> `4.3.1` (commit `ce2736d`). It removes `NSec.Cryptography`, its native `libsodium` dependency, and
+> `4.3.2` (commit `f7ed63c`). It removes `NSec.Cryptography`, its native `libsodium` dependency, and
 > EdDSA/Ed25519 support. It contains no Bouncy Castle dependency. RSA, RSA-PSS, and ECDSA operations use .NET
 > `System.Security.Cryptography`. See [MODIFICATIONS.md](MODIFICATIONS.md) for the precise compatibility and
 > maintenance policy.

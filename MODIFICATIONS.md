@@ -2,7 +2,7 @@
 
 This repository is a public fork of
 [passwordless-lib/fido2-net-lib](https://github.com/passwordless-lib/fido2-net-lib). The current fork baseline is
-upstream release `4.3.1`, commit `ce2736d`.
+upstream release `4.3.2`, commit `f7ed63c`.
 
 ## Purpose
 
@@ -40,14 +40,14 @@ build cannot be authenticated by this distribution and must be re-registered usi
 ## Versioning and maintenance
 
 Fork releases use a stable, explicitly reviewed version under the distinct `4tecture.*` package identities,
-beginning with `4.0.1`. The current release is `4.3.1`. `Directory.Build.props` is the single source of truth for the package version. Because NuGet
+beginning with `4.0.1`. The current package base version is `4.3.2`. `Directory.Build.props` is the single source of truth for the package version. Because NuGet
 packages are immutable, every published content change must increment that version before it reaches a `release/*`
 branch. Future upstream integrations must be reviewed manually; upstream crypto and package dependency changes must
 not be merged without re-running the excluded-crypto audit and the full test suite.
 
 Azure Pipelines publishes automatic `release/*` builds with that stable version to the `Products` feed. A manually
 queued build from any other branch appends the pipeline run number as a prerelease suffix, for example
-`4.3.1-20261016.1`, and publishes it to `Products-PreRelease`. Pull requests are validated by GitHub Actions and do
+`4.3.2-20261111.1`, and publishes it to `Products-PreRelease`. Pull requests are validated by GitHub Actions and do
 not trigger Azure Pipelines.
 
 ## License and attribution
